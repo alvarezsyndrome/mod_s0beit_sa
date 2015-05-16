@@ -628,7 +628,14 @@ static void ini_init ( void )
 		ini_register_data( ent, &set.key_map, "m" );
 	if ( (ent = ini_register_entry("key_map_show_vehicles", TYPE_KEYCOMBO)) != NULL )
 		ini_register_data( ent, &set.key_map_show_vehicles, "x" );
-
+	if ((ent = ini_register_entry("key_map_zoom_in", TYPE_KEYCOMBO)) != NULL)
+		ini_register_data(ent, &set.key_map_zoom_in, "u");
+	if ((ent = ini_register_entry("key_map_zoom_out", TYPE_KEYCOMBO)) != NULL)
+		ini_register_data(ent, &set.key_map_zoom_out, "o");
+	if ((ent = ini_register_entry("map_background_png_filename", TYPE_STRING)) != NULL)
+		ini_register_data(ent, set.map_background_png_filename, "mod_sa\\map.png");
+	if ((ent = ini_register_entry("map_background_and_zoom_enable", TYPE_BOOL)) != NULL)
+		ini_register_data(ent, &set.map_background_and_zoom_enable, "false");
 	/* weapons */
 	if ( (ent = ini_register_entry("key_weapon", TYPE_KEYCOMBO)) != NULL )
 		ini_register_data( ent, &set.key_weapon, "f5" );

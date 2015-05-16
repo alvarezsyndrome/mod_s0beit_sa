@@ -97,6 +97,10 @@ struct settings
 
 	keycombo				key_map;
 	keycombo				key_map_show_vehicles;
+	int						map_background_and_zoom_enable;
+	keycombo				key_map_zoom_in;
+	keycombo				key_map_zoom_out;
+	char					map_background_png_filename[32];
 
 	keycombo				key_air_brake_mod;
 	keycombo				key_air_brake_foot_mod;

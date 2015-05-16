@@ -334,7 +334,15 @@ int getPlayerPos(int iPlayerID, float fPos[3])
 		return 0;
 
 	if (g_Players->pRemotePlayer[iPlayerID]->pPlayerData->pSAMP_Actor == NULL)
-		return 0;	// not streamed
+	{
+		if (!set.map_background_and_zoom_enable)
+		{
+			return 0;
+		}
+
+		vect3_copy(g_stStreamedOutInfo.fPlayerPos[iPlayerID], fPos);
+		return !vect3_near_zero(fPos);
+	}
 	else
 	{
 		pActor = g_Players->pRemotePlayer[iPlayerID]->pPlayerData->pSAMP_Actor->pGTA_Ped;

@@ -343,6 +343,16 @@ void cheat_handle_fastwarp(struct vehicle_info *vehicle_info, struct actor_info 
 
 void cheat_handle_misc ( void )
 {
+	if (set.map_background_and_zoom_enable && KEYCOMBO_DOWN(set.key_map_zoom_in))
+	{
+		mapZoomfactor *= 1.1f;
+	}
+
+	if (set.map_background_and_zoom_enable && KEYCOMBO_DOWN(set.key_map_zoom_out))
+	{
+		mapZoomfactor /= 1.1f;
+	}
+
 	if ( KEYCOMBO_PRESSED(set.key_map) )
 	{
 		cheat_state->_generic.map ^= 1; /* toggle minimap */

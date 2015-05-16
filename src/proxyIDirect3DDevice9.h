@@ -186,6 +186,7 @@ extern CD3DFont					*pD3DFont_sampStuff;
 extern CD3DFont					*pD3DFontFixedSmall;
 extern CD3DFont					*pD3DFontChat;
 extern D3DPRESENT_PARAMETERS	pPresentParam;	// updated after a successful Reset()
+extern float mapZoomfactor;
 
 // externals
 

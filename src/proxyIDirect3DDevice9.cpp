@@ -25,6 +25,7 @@
 // externals
 unsigned long	ulFullScreenRefreshRate;
 extern D3DC9	orig_Direct3DCreate9 = NULL;;
+float mapZoomfactor = 0.3f;
 
 // externals
 #pragma data_seg( ".d3d9_shared" )
@@ -42,17 +43,24 @@ bool					bD3DWindowModeSet;
 bool					g_isRequestingWindowModeToggle;
 bool					g_isRequesting_RwD3D9ChangeVideoMode;
 
+
+IDirect3DTexture9		*tLoadingLogo;
+ID3DXSprite				*sLoadingLogo;
+D3DXVECTOR3				posLoadingLogo;
 IDirect3DPixelShader9	*chams_green;
 IDirect3DPixelShader9	*chams_blue;
 IDirect3DPixelShader9	*chams_red;
 
 D3DXVECTOR3				speedoPos;
 D3DXVECTOR2				needlePos;
+D3DXVECTOR2				mapBGPos;
 
 IDirect3DTexture9		*tSpeedoPNG;
 ID3DXSprite				*sSpeedoPNG;
 IDirect3DTexture9		*tNeedlePNG;
 ID3DXSprite				*sNeedlePNG;
+IDirect3DTexture9		*tMapBGPNG;
+ID3DXSprite				*sMapBGPNG;
 
 // create a render object
 CD3DRender				*render = new CD3DRender( 128 );
@@ -548,7 +556,10 @@ void RenderMapDot ( const float self_pos[3], const float pos[16], DWORD color, c
 
 	vect3_vect3_sub( pos, self_pos, vect );
 
-	if ( vect3_length(vect) > 1000.0f )
+	if ( set.map_background_and_zoom_enable && vect3_length(vect) > 12000.0f )
+		return;
+
+	if ( !set.map_background_and_zoom_enable && vect3_length(vect) > 1000.0f)
 		return;
 
 	color = ( color & 0x00FFFFFF ) | 0xDF000000;
@@ -560,8 +571,17 @@ void RenderMapDot ( const float self_pos[3], const float pos[16], DWORD color, c
 
 	rvect[1] /= pPresentParam.BackBufferWidth / pPresentParam.BackBufferHeight;
 
-	x = (float)pPresentParam.BackBufferWidth / 2 + roundf( rvect[0] );
-	y = (float)pPresentParam.BackBufferHeight / 2 + roundf( rvect[1] );
+	if (set.map_background_and_zoom_enable)
+	{
+		rvect[0] *= mapZoomfactor;
+		rvect[1] *= mapZoomfactor;
+	}
+
+	x = (float)pPresentParam.BackBufferWidth / 2 + roundf(rvect[0]);
+	y = (float)pPresentParam.BackBufferHeight / 2 + roundf(rvect[1]);
+
+
+
 	if (x < 0.0f || x > pPresentParam.BackBufferWidth || y < 0.0f || y > pPresentParam.BackBufferHeight)
 		return;
 	if (set.map_draw_lines && vect3_length(vect) > 5.0f)
@@ -616,6 +636,50 @@ void RenderMapDot ( const float self_pos[3], const float pos[16], DWORD color, c
 	}
 }
 
+void drawMapBackground(void)
+{
+	float pos[3];
+	struct actor_info	*info = actor_info_get( ACTOR_SELF, 0 );
+	vect3_copy( &info->base.matrix[4 * 3] ,pos );
+
+	float scalefactor = 1.457f*mapZoomfactor;
+
+	float mapOffsetX = 2048.0f*scalefactor //scalefactor für png
+		+ pos[0] * 0.993f *mapZoomfactor; //+ position und scalefactor für pos
+	float mapOffsetY = 2048.0f*scalefactor
+		- pos[1] * 0.993f*mapZoomfactor; //+ position und scalefactor für pos;
+
+
+	if ( !gta_menu_active() && !KEY_DOWN(VK_TAB) )
+	{
+		if ( (sMapBGPNG) && (tMapBGPNG) )
+		{
+
+			D3DXVECTOR2 spriteCentre=D3DXVECTOR2(0.0f+mapOffsetX,0.0f+mapOffsetY); // in pixeln vorm komma
+
+			// Screen position of the sprite
+			D3DXVECTOR2 trans=D3DXVECTOR2(mapBGPos.x-mapOffsetX, mapBGPos.y-mapOffsetY);
+
+			// Rotate based on player angle
+			float rotation= -atan2f( cam_matrix[4 * 0 + 0], cam_matrix[4 * 0 + 1] ) - M_PI / 2.0f; 
+
+			// rotation, scaling and translation matrix
+			D3DXMATRIX mat;
+
+			D3DXVECTOR2 scaling(scalefactor, scalefactor);
+
+			// out, scaling centre, scaling rotation, scaling, rotation centre, rotation, translation
+			D3DXMatrixTransformation2D(&mat,NULL,0.0,&scaling,&spriteCentre,rotation,&trans);
+			sMapBGPNG->Begin( D3DXSPRITE_ALPHABLEND );
+			sMapBGPNG->SetTransform( &mat );
+			sMapBGPNG->Draw( tMapBGPNG, NULL, NULL, NULL, 0xAAFFFFFF ); // die ersten beiden hexwerte transparenz
+			sMapBGPNG->End();
+		}
+	}
+
+}
+
+
 void RenderMap ( void )
 {
 	traceLastFunc( "renderMap()" );
@@ -638,6 +702,10 @@ void RenderMap ( void )
 		if ( GetAsyncKeyState(VK_F10) < 0 )
 			return;
 	}
+	if (set.map_background_and_zoom_enable)
+	{
+		drawMapBackground();
+	}
 
 	struct actor_info	*self = actor_info_get( ACTOR_SELF, ACTOR_ALIVE );
 	if ( self == NULL )
@@ -656,8 +724,7 @@ void RenderMap ( void )
 			{
 				if ( !getPlayerPos(i, pos) )
 					continue;
-				if ( g_Players->pRemotePlayer[i] == NULL )
-					continue;
+
 				_snprintf_s( buf, sizeof(buf)-1, "%s(%d)", getPlayerName(i), i );
 				RenderMapDot( &self->base.matrix[4 * 3], pos, samp_color_get(i), buf );
 			}
@@ -3276,6 +3343,9 @@ void texturesInitResources ( IDirect3DDevice9 *pDevice, D3DPRESENT_PARAMETERS *p
 		sSpeedoPNG = NULL;
 		tNeedlePNG = NULL;
 		sNeedlePNG = NULL;
+		tMapBGPNG = NULL;
+		sMapBGPNG = NULL;
+
 		if ( !tSpeedoPNG )
 			D3DXCreateTextureFromFile( pDevice, set.speedometer_speedo_png_filename, &tSpeedoPNG );
 		if ( !sSpeedoPNG )
@@ -3284,6 +3354,13 @@ void texturesInitResources ( IDirect3DDevice9 *pDevice, D3DPRESENT_PARAMETERS *p
 			D3DXCreateTextureFromFile( pDevice, set.speedometer_needle_png_filename, &tNeedlePNG );
 		if ( !sNeedlePNG )
 			D3DXCreateSprite( pDevice, &sNeedlePNG );
+		if ( !tMapBGPNG )
+			D3DXCreateTextureFromFile( pDevice, set.map_background_png_filename, &tMapBGPNG );
+		if ( !sMapBGPNG )
+			D3DXCreateSprite( pDevice, &sMapBGPNG );
+
+		mapBGPos.x = ( pPresentationParameters->BackBufferWidth / 2.0f );
+		mapBGPos.y = ( pPresentationParameters->BackBufferHeight / 2.0f );
 		needlePos.x = ( pPresentationParameters->BackBufferWidth / 1024.0f );
 		needlePos.y = ( pPresentationParameters->BackBufferHeight / 768.0f );
 		speedoPos.x = ( 750.0f * needlePos.x );
