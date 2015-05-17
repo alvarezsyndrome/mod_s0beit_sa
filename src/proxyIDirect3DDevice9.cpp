@@ -652,7 +652,7 @@ void drawMapBackground(void)
 
 	if ( !gta_menu_active() && !KEY_DOWN(VK_TAB) )
 	{
-		if ( (sMapBGPNG) && (tMapBGPNG) )
+		if ( sMapBGPNG && tMapBGPNG )
 		{
 
 			D3DXVECTOR2 spriteCentre=D3DXVECTOR2(0.0f+mapOffsetX,0.0f+mapOffsetY); // in pixeln vorm komma
@@ -3326,6 +3326,25 @@ void mapMenuTeleport ( void )
 
 void texturesInitResources ( IDirect3DDevice9 *pDevice, D3DPRESENT_PARAMETERS *pPresentationParameters )
 {
+	if (set.map_background_and_zoom_enable && (
+		fopen(set.map_background_png_filename, "rb") == NULL))
+	{
+		Log("Could not find the Map Background files, disabling it.");
+		set.map_background_and_zoom_enable = false;
+	}
+	else if (set.map_background_and_zoom_enable)
+	{
+		tMapBGPNG = NULL;
+		sMapBGPNG = NULL;
+
+		if (!tMapBGPNG)
+			D3DXCreateTextureFromFile(pDevice, set.map_background_png_filename, &tMapBGPNG);
+		if (!sMapBGPNG)
+			D3DXCreateSprite(pDevice, &sMapBGPNG);
+
+		mapBGPos.x = (pPresentationParameters->BackBufferWidth / 2.0f);
+		mapBGPos.y = (pPresentationParameters->BackBufferHeight / 2.0f);
+	}
 	if ( set.speedometer_enable
 	 &&	 (
 			 fopen(set.speedometer_speedo_png_filename, "rb") == NULL
@@ -3343,8 +3362,7 @@ void texturesInitResources ( IDirect3DDevice9 *pDevice, D3DPRESENT_PARAMETERS *p
 		sSpeedoPNG = NULL;
 		tNeedlePNG = NULL;
 		sNeedlePNG = NULL;
-		tMapBGPNG = NULL;
-		sMapBGPNG = NULL;
+
 
 		if ( !tSpeedoPNG )
 			D3DXCreateTextureFromFile( pDevice, set.speedometer_speedo_png_filename, &tSpeedoPNG );
@@ -3354,13 +3372,7 @@ void texturesInitResources ( IDirect3DDevice9 *pDevice, D3DPRESENT_PARAMETERS *p
 			D3DXCreateTextureFromFile( pDevice, set.speedometer_needle_png_filename, &tNeedlePNG );
 		if ( !sNeedlePNG )
 			D3DXCreateSprite( pDevice, &sNeedlePNG );
-		if ( !tMapBGPNG )
-			D3DXCreateTextureFromFile( pDevice, set.map_background_png_filename, &tMapBGPNG );
-		if ( !sMapBGPNG )
-			D3DXCreateSprite( pDevice, &sMapBGPNG );
 
-		mapBGPos.x = ( pPresentationParameters->BackBufferWidth / 2.0f );
-		mapBGPos.y = ( pPresentationParameters->BackBufferHeight / 2.0f );
 		needlePos.x = ( pPresentationParameters->BackBufferWidth / 1024.0f );
 		needlePos.y = ( pPresentationParameters->BackBufferHeight / 768.0f );
 		speedoPos.x = ( 750.0f * needlePos.x );
@@ -3422,6 +3434,12 @@ void proxyID3DDevice9_UnInitOurShit ( void )
 		SAFE_RELEASE( tSpeedoPNG );
 		SAFE_RELEASE( sNeedlePNG );
 		SAFE_RELEASE( tNeedlePNG );
+	}
+
+	if (set.map_background_and_zoom_enable)
+	{
+		SAFE_RELEASE(tMapBGPNG);
+		SAFE_RELEASE(sMapBGPNG);
 	}
 	
 	// death texture
